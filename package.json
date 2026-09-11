@@ -1,5 +1,5 @@
 {
- "name": "trade-live-biz",
+ "name": "trade-live-biz",git add package.json .node-version
   "version": "1.0.0",
   "description": "Trade Live Biz",
   "private": true,
