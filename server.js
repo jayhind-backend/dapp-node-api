@@ -1,9 +1,6 @@
 const express = require("express");
 
-const { ethers } =  require("ethers");
-
-
-
+const { ethers } = require("ethers");
 
 
 const bodyParser = require("body-parser");
@@ -40,6 +37,225 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 app.use(bodyParser.json());
 
+
+
+
+router.post('/api/v1/verify-bsc-transaction', async function (req, res) {
+
+	
+
+    const provider = new ethers.providers.JsonRpcProvider(
+    'https://bsc-dataseed.binance.org/'
+);
+
+    const transactionHash = req.body.hash;
+
+    (async () => {
+
+      try {
+
+          // Fetch the transaction and receipt
+
+          // const transaction = await provider.getTransaction(transactionHash);
+
+          const receipt = await provider.getTransactionReceipt(transactionHash);
+
+  
+
+          const contractABI = ["event Transfer(address indexed from, address indexed to, uint256 value)"];
+
+         const contractInterface = new ethers.utils.Interface(contractABI);
+
+         
+
+          // Retrieve the Transfer event topic directly from the Interface
+
+          const transferEventTopic = ethers.utils.keccak256(
+    ethers.utils.toUtf8Bytes("Transfer(address,address,uint256)")
+);
+
+        
+
+          const logs = receipt.logs.filter(log => log.topics[0] === transferEventTopic);
+
+  
+
+          if (logs.length > 0) {
+
+              const parsedLog = contractInterface.parseLog(logs[0]);
+
+           const transferredAmount = ethers.utils.formatUnits(
+    parsedLog.args.value,
+    18
+);
+
+              res.send(
+
+                  JSON.stringify({
+
+                      Amount: transferredAmount,
+
+                      from: parsedLog.args.from,
+
+                      to: parsedLog.args.to,
+
+                      contract: receipt.to,
+
+                  })
+
+              );
+
+          } else {
+
+              res.send(JSON.stringify({ Error: "No Transfer event logs found in transaction receipt." }));
+
+          }
+
+      } catch (error) {
+
+          res.send(JSON.stringify({ Error: error.message }));
+
+      }
+
+  })();
+
+    
+
+});
+
+
+
+router.post('/api/v1/verify-bnb-transaction', async function (req, res) {
+
+    //v6.13
+
+   const provider = new ethers.providers.JsonRpcProvider(
+    'https://bsc-dataseed.binance.org/'
+);
+    const hash = req.body.hash;
+
+    (async () => {
+
+      try {
+
+        const transaction = await provider.getTransaction(hash);
+
+        if (!transaction) return res.status(404).json({ error: "Transaction not found" });
+
+        // transaction.value is a bigint-like value — use formatEther
+
+      const transferredAmount = ethers.utils.formatEther(transaction.value);
+
+          res.send(
+
+              JSON.stringify({
+
+                  Amount: transferredAmount.toString(),
+
+                  from: transaction.from,
+
+                  to: transaction.to,
+
+                  contract: null,
+
+              })
+
+          );
+
+      } catch (error) {
+
+          res.send(JSON.stringify({ Error: error.message }));
+
+      }
+
+  })();
+
+    
+
+});
+
+
+
+
+
+
+
+router.post('/api/v1/verify-polygon-transaction', async function (req, res) {
+
+	
+
+     const provider = new ethers.providers.JsonRpcProvider(
+    'https://polygon-bor-rpc.publicnode.com',
+    {
+        name: 'matic',
+        chainId: 137
+    }
+);
+    const transactionHash = req.body.hash;
+
+    try {
+
+        // Fetch transaction receipt
+        const receipt = await provider.getTransactionReceipt(transactionHash);
+
+        if (!receipt) {
+            return res.status(404).json({
+                Error: "Transaction receipt not found"
+            });
+        }
+
+        const contractABI = [
+            "event Transfer(address indexed from, address indexed to, uint256 value)"
+        ];
+
+        // Ethers v5
+        const contractInterface = new ethers.utils.Interface(contractABI);
+
+        // Ethers v5
+        const transferEventTopic = ethers.utils.keccak256(
+            ethers.utils.toUtf8Bytes(
+                "Transfer(address,address,uint256)"
+            )
+        );
+
+        const logs = receipt.logs.filter(
+            log => log.topics[0] === transferEventTopic
+        );
+
+        if (logs.length > 0) {
+
+            const parsedLog = contractInterface.parseLog(logs[0]);
+
+            // Polygon USDT generally uses 6 decimals
+            const transferredAmount = ethers.utils.formatUnits(
+                parsedLog.args.value,
+                6
+            );
+
+            return res.json({
+                Amount: transferredAmount,
+                from: parsedLog.args.from,
+                to: parsedLog.args.to,
+                contract: receipt.to
+            });
+
+        } else {
+
+            return res.json({
+                Error: "No Transfer event logs found in transaction receipt."
+            });
+
+        }
+
+    } catch (error) {
+
+return res.status(500).json({
+            Error: error.message
+        });
+    }
+    
+
+});
 
 
 
@@ -102,7 +318,7 @@ router.post('/sendTransaction', async function (req, res) {
 
 router.get('/', function (req, res) {
 
-    res.send('this Code is working');
+    res.send('This Code is working');
 
 });
 
