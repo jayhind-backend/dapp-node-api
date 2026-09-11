@@ -318,7 +318,7 @@ router.post('/sendTransaction', async function (req, res) {
 
 router.get('/', function (req, res) {
 
-    res.send('This Code is working');
+    res.send('This Code is working on server');
 
 });
 
